@@ -9,12 +9,13 @@ from selenium.webdriver.common.by import By
 import os
 import pytz
 import pause
+import time
 
 def wait(book_date):
     book_date_in_date_time = datetime.strptime(book_date, "%Y-%m-%d")
     
     start_book_date = book_date_in_date_time - timedelta(days=14)
-    start_book_time = start_book_date.replace(hour=9,minute=59,second=55)
+    start_book_time = start_book_date.replace(hour=9,minute=59,second=58)
     tw_zone = pytz.timezone('Asia/Taipei')
 
     tw_start_book_time = tw_zone.localize(start_book_time)
@@ -52,6 +53,12 @@ def select_date(web_driver,book_date):
     end_re_try_time = datetime.now() + timedelta(minutes=5)
     while True:
         try:
+            if end_re_try_time < datetime.now():
+                print('over try')
+                
+                return  False
+            web_driver.refresh()
+
             select = Select(web_driver.find_element_by_id('RentalData'))
             select.select_by_value(book_date)
             element = web_driver.find_element_by_id('RentalData')
@@ -59,11 +66,6 @@ def select_date(web_driver,book_date):
 
             return True
         except Exception as e:
-            web_driver.refresh()
-            now = datetime.now()
-    
-            if end_re_try_time < now:
-                return  False
             print(e)
 
 def select_court(web_driver,court):
@@ -74,7 +76,7 @@ def select_court(web_driver,court):
     court_xpath = "//a[@id='SubVenues_{}']".format(court)
 
     try:
-        WebDriverWait(web_driver, 5).until(
+        WebDriverWait(web_driver, 10).until(
             expected_conditions.element_to_be_clickable((By.ID, court_id))
         )
 
@@ -82,6 +84,7 @@ def select_court(web_driver,court):
         element.click() 
 
     except Exception as ex:
+        print("select court exception = {}".format(ex))
         return False
 
     return True
@@ -95,7 +98,7 @@ def select_time(web_driver,book_date,book_times):
 
     click_date_id = 'DataPickup.{}'.format(order_date_dot)
     try:
-        WebDriverWait(web_driver, 5).until(
+        WebDriverWait(web_driver, 10).until(
             expected_conditions.visibility_of_element_located((By.ID, click_date_id))
         )
         for order_time in book_times:
@@ -109,7 +112,8 @@ def select_time(web_driver,book_date,book_times):
             element = web_driver.find_element_by_xpath(xpath)
             web_driver.execute_script("mmDataPickup.Booking(arguments[0],event);", element)
     except Exception as ex:
-        print(ex)
+        print("select time exception  = {}".format(ex))
+
         return False
 
     return True
@@ -121,20 +125,20 @@ def select_rest(web_driver):
 
     web_driver.find_element_by_xpath("//button[@class='Btn Send']").click()
 
-    WebDriverWait(web_driver, 5).until(
+    WebDriverWait(web_driver, 10).until(
         expected_conditions.element_to_be_clickable((By.XPATH, "//button[@class='Btn']"))
     )
 
     web_driver.find_element_by_xpath("//button[@class='Btn']").click()
 
-    WebDriverWait(web_driver, 5).until(
+    WebDriverWait(web_driver, 10).until(
         expected_conditions.element_to_be_clickable((By.ID, "Agree"))
     )
     web_driver.find_element_by_id("Agree").click()
 
     web_driver.find_element_by_xpath("//button[@class='Btn Send']").click()
 
-    WebDriverWait(web_driver, 5).until(
+    WebDriverWait(web_driver, 10).until(
         expected_conditions.element_to_be_clickable((By.XPATH, "//button[@class='Btn']"))
     )
 
@@ -153,13 +157,14 @@ def booking_process(web_driver,book_date,book_times,court):
         return
 
     is_continue = select_time(web_driver,book_date,book_times)
-
+    
     select_rest(web_driver)
 
 
 if __name__ == '__main__':
     member_user_name = os.environ.get('MEMBER_USER_NAME')
     member_information = os.environ.get('MEMBER_INFORMATION')
+
     if not member_user_name or not member_information:
         print("missing require")
         quit()
@@ -174,10 +179,10 @@ if __name__ == '__main__':
     print(f"book court = {court}")
     try:
         web_driver = web_driver_init()
-        wait(book_date)
         login(web_driver,member_user_name,member_information)
+        wait(book_date)
         booking_process(web_driver,book_date,book_times,court)
     except Exception as e:
-        print(e)
+        print("outer cache exception = {}".format(e))
     
     web_driver.quit()
