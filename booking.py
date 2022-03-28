@@ -6,6 +6,7 @@ from datetime import datetime,timedelta
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.common.by import By
+from selenium.common.exceptions import TimeoutException
 import os
 import pytz
 import pause
@@ -33,18 +34,17 @@ def web_driver_init():
     options.add_argument('–incognito')
 
 
-    driver = webdriver.Chrome(
+    web_driver = webdriver.Chrome(
         executable_path='/usr/local/bin/chromedriver', chrome_options=options)
 
-    return driver
+    return web_driver
 
-def login(driver,member_user_name,member_information):
-    driver.get("https://sports.tms.gov.tw/member/")
+def login(web_driver,member_user_name,member_information):
+    web_driver.get("https://sports.tms.gov.tw/member/")
 
-    driver.add_cookie({'name':'MemberUserName', 'value':member_user_name})
-    driver.add_cookie({'name':'MEMBER_INFORMATION', 'value':member_information})
+    web_driver.add_cookie({'name':'MemberUserName', 'value':member_user_name})
+    web_driver.add_cookie({'name':'MEMBER_INFORMATION', 'value':member_information})
 
-    driver.get("https://sports.tms.gov.tw/order_rental/?K=49")
 
 def dashrepl(matchobj):
     return '.{}.'.format(matchobj.group(1))
@@ -72,17 +72,19 @@ def select_court(web_driver,court):
     if not court:
         return False
     
-    court_id = 'SubVenues_{}'.format(court)
     court_xpath = "//a[@id='SubVenues_{}']".format(court)
 
     try:
         WebDriverWait(web_driver, 10).until(
-            expected_conditions.element_to_be_clickable((By.ID, court_id))
+            expected_conditions.element_to_be_clickable((By.XPATH, court_xpath))
         )
 
         element = web_driver.find_element_by_xpath(court_xpath)
         element.click() 
 
+    except TimeoutException:
+            print("{} element timeout exception".format(court_xpath))
+            return False
     except Exception as ex:
         print("select court exception = {}".format(ex))
         return False
@@ -101,6 +103,11 @@ def select_time(web_driver,book_date,book_times):
         WebDriverWait(web_driver, 10).until(
             expected_conditions.visibility_of_element_located((By.ID, click_date_id))
         )
+    except TimeoutException:
+        print("{} element timeout exception".format(click_date_id))
+
+        return False
+    try:
         for order_time in book_times:
             if not order_time:
                 continue
@@ -111,6 +118,10 @@ def select_time(web_driver,book_date,book_times):
             )
             element = web_driver.find_element_by_xpath(xpath)
             web_driver.execute_script("mmDataPickup.Booking(arguments[0],event);", element)
+    except TimeoutException:
+        print("{} element timeout exception".format(xpath))
+        
+        return False
     except Exception as ex:
         print("select time exception  = {}".format(ex))
 
@@ -145,19 +156,25 @@ def select_rest(web_driver):
     web_driver.find_element_by_xpath("//button[@class='Btn']").click()
 
 def booking_process(web_driver,book_date,book_times,court):
-    is_continue = select_date(web_driver,book_date)
-    
-    if not is_continue:
+    web_driver.get("https://sports.tms.gov.tw/order_rental/?K=49")
+    is_date_continue = select_date(web_driver,book_date)
+    print("select date finish")
+    if not is_date_continue:
         print("select_date fail")
         return
-    is_continue = select_court(web_driver,court)
-    
-    if not is_continue:
+    is_court_continue = select_court(web_driver,court)
+    print("select court finish")
+
+    if not is_court_continue:
         print("select_court fail")
         return
 
-    is_continue = select_time(web_driver,book_date,book_times)
-    
+    is_time_continue = select_time(web_driver,book_date,book_times)
+    print("select time finish")
+    if not is_time_continue:
+        print("select_court fail")
+        return
+
     select_rest(web_driver)
 
 
