@@ -99,14 +99,14 @@ def select_time(web_driver,book_date,book_times):
     order_date_dot = re.sub(pattern, dashrepl, order_date_dot)
 
     click_date_id = 'DataPickup.{}'.format(order_date_dot)
-    try:
-        WebDriverWait(web_driver, 10).until(
-            expected_conditions.visibility_of_element_located((By.ID, click_date_id))
-        )
-    except TimeoutException:
-        print("{} element timeout exception".format(click_date_id))
+    # try:
+    #     WebDriverWait(web_driver, 10).until(
+    #         expected_conditions.visibility_of_element_located((By.ID, click_date_id))
+    #     )
+    # except TimeoutException:
+    #     print("{} element timeout exception".format(click_date_id))
 
-        return False
+    #     return False
     try:
         for order_time in book_times:
             if not order_time:
@@ -172,7 +172,7 @@ def booking_process(web_driver,book_date,book_times,court):
     is_time_continue = select_time(web_driver,book_date,book_times)
     print("select time finish")
     if not is_time_continue:
-        print("select_court fail")
+        print("select_time fail")
         return
 
     select_rest(web_driver)
