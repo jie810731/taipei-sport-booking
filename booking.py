@@ -72,24 +72,20 @@ def select_court(web_driver,court):
     if not court:
         return False
     
+    end_re_try_time = datetime.now() + timedelta(minutes=5)
     court_xpath = "//a[@id='SubVenues_{}']".format(court)
+    while True:
+        try:
+            if end_re_try_time < datetime.now():
+                print('over try select court')
+                
+                return  False
+            element = web_driver.find_element_by_xpath(court_xpath)
+            element.click() 
 
-    try:
-        WebDriverWait(web_driver, 10).until(
-            expected_conditions.element_to_be_clickable((By.XPATH, court_xpath))
-        )
-
-        element = web_driver.find_element_by_xpath(court_xpath)
-        element.click() 
-
-    except TimeoutException:
-            print("{} element timeout exception".format(court_xpath))
-            return False
-    except Exception as ex:
-        print("select court exception = {}".format(ex))
-        return False
-
-    return True
+            return True
+        except Exception as e:
+            print(e)
 
 def select_time(web_driver,book_date,book_times):
     if not book_date:
@@ -99,61 +95,81 @@ def select_time(web_driver,book_date,book_times):
     order_date_dot = re.sub(pattern, dashrepl, order_date_dot)
 
     click_date_id = 'DataPickup.{}'.format(order_date_dot)
-    # try:
-    #     WebDriverWait(web_driver, 10).until(
-    #         expected_conditions.visibility_of_element_located((By.ID, click_date_id))
-    #     )
-    # except TimeoutException:
-    #     print("{} element timeout exception".format(click_date_id))
+ 
+    end_re_try_time = datetime.now() + timedelta(minutes=5)
+    for order_time in book_times:
+        if not order_time:
+            continue
 
-    #     return False
-    try:
-        for order_time in book_times:
-            if not order_time:
-                continue
-            xpath = "//td[@id='{}.{}.1']//div".format(click_date_id,order_time)
+        xpath = "//td[@id='{}.{}.1']//div".format(click_date_id,order_time)
 
-            WebDriverWait(web_driver, 20).until(
-                expected_conditions.element_to_be_clickable((By.XPATH, xpath))
-            )
-            element = web_driver.find_element_by_xpath(xpath)
-            web_driver.execute_script("mmDataPickup.Booking(arguments[0],event);", element)
-    except TimeoutException:
-        print("{} element timeout exception".format(xpath))
-        
-        return False
-    except Exception as ex:
-        print("select time exception  = {}".format(ex))
-
-        return False
+        while True:
+            try:
+                if end_re_try_time < datetime.now():
+                    print('over try select court')
+                
+                    return  False
+                element = web_driver.find_element_by_xpath(xpath)
+                web_driver.execute_script("mmDataPickup.Booking(arguments[0],event);", element)
+                
+                break
+            except Exception as e:
+                print(e)
 
     return True
 
 def select_rest(web_driver):
+    end_re_try_time = datetime.now() + timedelta(minutes=5)
+
     element = web_driver.find_element_by_id('ParticipateTypeG')
     element.clear()
     element.send_keys('2')
 
-    web_driver.find_element_by_xpath("//button[@class='Btn Send']").click()
+    # 下一步,送出零租場地
+    button = web_driver.find_element_by_xpath("//button[@class='Btn Send']")
+    web_driver.execute_script('ChkStep1()',button)
 
-    WebDriverWait(web_driver, 10).until(
-        expected_conditions.element_to_be_clickable((By.XPATH, "//button[@class='Btn']"))
-    )
+    # dailog 再次確認
+    try:
+        x_path = "//div[@class='Item']/button[@name='Send']"
+        WebDriverWait(web_driver, 5).until(
+            expected_conditions.presence_of_element_located((By.XPATH, x_path))
+        )
 
-    web_driver.find_element_by_xpath("//button[@class='Btn']").click()
+        element = web_driver.find_element_by_xpath(x_path)
+        element.click() 
 
-    WebDriverWait(web_driver, 10).until(
-        expected_conditions.element_to_be_clickable((By.ID, "Agree"))
-    )
+    except TimeoutException:
+        print("confirm again, {} element timeout exception".format(x_path))
+        web_driver.save_screenshot("confirm_again_exception.png")
+
+        return False
+    print('select page finish')
+            
+    # 我同意
     web_driver.find_element_by_id("Agree").click()
+    
 
-    web_driver.find_element_by_xpath("//button[@class='Btn Send']").click()
+    # 下一步,成立零租租借單
+    web_driver.execute_script('CreateOrderConfirm()')
 
-    WebDriverWait(web_driver, 10).until(
-        expected_conditions.element_to_be_clickable((By.XPATH, "//button[@class='Btn']"))
-    )
 
-    web_driver.find_element_by_xpath("//button[@class='Btn']").click()
+    # 請您確認送出訂單
+    try:
+        x_path = "//div[@class='Item']/button[@name='Send']"
+        WebDriverWait(web_driver, 5).until(
+            expected_conditions.presence_of_element_located((By.XPATH, x_path))
+        )
+
+        element = web_driver.find_element_by_xpath(x_path)
+        element.click() 
+
+    except TimeoutException:
+        print("send order timeout, {} element timeout exception".format(x_path))
+        web_driver.save_screenshot("send_order_exception.png")
+
+        return False
+    print('order finish')
 
 def booking_process(web_driver,book_date,book_times,court):
     web_driver.get("https://sports.tms.gov.tw/order_rental/?K=49")
