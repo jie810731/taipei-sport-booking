@@ -31,7 +31,6 @@ def web_driver_init():
     options.add_argument("window-size=1440,1900")
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
-    options.add_argument('–incognito')
 
 
     web_driver = webdriver.Chrome(
@@ -68,7 +67,7 @@ def select_date(web_driver,book_date):
         except Exception as e:
             print(e)
 
-def select_court(web_driver,court):
+def select_court(web_driver,court,book_date):
     if not court:
         return False
     
@@ -83,7 +82,18 @@ def select_court(web_driver,court):
             element = web_driver.find_element_by_xpath(court_xpath)
             element.click() 
 
+            #載入日期圖表 若失敗 重選日期
+            order_date_dot = book_date.replace("-", ".")
+            pattern = r"\.0(\d)\."
+            order_date_dot = re.sub(pattern, dashrepl, order_date_dot)
+            click_date_id = 'DataPickup.{}'.format(order_date_dot)
+
+            WebDriverWait(web_driver,2).until(expected_conditions.visibility_of_element_located((By.ID, click_date_id)))
+            
             return True
+
+        except TimeoutException:
+                print("order date fail,{} element timeout exception".format(click_date_id))
         except Exception as e:
             print(e)
 
@@ -95,7 +105,7 @@ def select_time(web_driver,book_date,book_times):
     order_date_dot = re.sub(pattern, dashrepl, order_date_dot)
 
     click_date_id = 'DataPickup.{}'.format(order_date_dot)
- 
+
     end_re_try_time = datetime.now() + timedelta(minutes=5)
     for order_time in book_times:
         if not order_time:
@@ -119,8 +129,6 @@ def select_time(web_driver,book_date,book_times):
     return True
 
 def select_rest(web_driver):
-    end_re_try_time = datetime.now() + timedelta(minutes=5)
-
     element = web_driver.find_element_by_id('ParticipateTypeG')
     element.clear()
     element.send_keys('2')
@@ -178,7 +186,8 @@ def booking_process(web_driver,book_date,book_times,court):
     if not is_date_continue:
         print("select_date fail")
         return
-    is_court_continue = select_court(web_driver,court)
+
+    is_court_continue = select_court(web_driver,court,book_date)
     print("select court finish")
 
     if not is_court_continue:
