@@ -134,8 +134,8 @@ def select_rest(web_driver):
     element.send_keys('2')
 
     # 下一步,送出零租場地
-    button = web_driver.find_element_by_xpath("//button[@class='Btn Send']")
-    web_driver.execute_script('ChkStep1()',button)
+    button = web_driver.find_element_by_xpath("//button[@class='Btn Send']").click()
+    # web_driver.execute_script('ChkStep1()',button)
 
     # dailog 再次確認
     try:
@@ -159,7 +159,8 @@ def select_rest(web_driver):
     
 
     # 下一步,成立零租租借單
-    web_driver.execute_script('CreateOrderConfirm()')
+    confirm_button_element = web_driver.find_element_by_xpath("//button[@name='SendView']").click()
+    # web_driver.execute_script('CreateOrderConfirm()')
 
 
     # 請您確認送出訂單
