@@ -9,7 +9,7 @@ docker run -i -t \
     -e BOOK_DATE='YYYY-MM-DD' \
     -e BOOK_TIME='HH,HH' \
     -e COURT='736' \
-    --env-file .env \
+    -e MEMBER_INFORMATION='' \
     -v "$PWD":/app  \
     --name booking_container booking
  ```

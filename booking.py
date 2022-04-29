@@ -31,6 +31,7 @@ def web_driver_init():
     options.add_argument("window-size=1440,1900")
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
+    options.add_argument('--disable-gpu')
 
 
     web_driver = webdriver.Chrome(
@@ -38,10 +39,8 @@ def web_driver_init():
 
     return web_driver
 
-def login(web_driver,member_user_name,member_information):
+def login(web_driver,member_information):
     web_driver.get("https://sports.tms.gov.tw/member/")
-
-    web_driver.add_cookie({'name':'MemberUserName', 'value':member_user_name})
     web_driver.add_cookie({'name':'MEMBER_INFORMATION', 'value':member_information})
 
 
@@ -88,7 +87,7 @@ def select_court(web_driver,court,book_date):
             order_date_dot = re.sub(pattern, dashrepl, order_date_dot)
             click_date_id = 'DataPickup.{}'.format(order_date_dot)
 
-            WebDriverWait(web_driver,2).until(expected_conditions.visibility_of_element_located((By.ID, click_date_id)))
+            WebDriverWait(web_driver,10).until(expected_conditions.visibility_of_element_located((By.ID, click_date_id)))
             
             return True
 
@@ -134,12 +133,12 @@ def select_rest(web_driver):
     element.send_keys('2')
 
     # 下一步,送出零租場地
-    button = web_driver.find_element_by_xpath("//button[@class='Btn Send']").click()
+    button = web_driver.find_element_by_xpath("//form[@id='OrderForm']/a/div[2]/button").click()
     # web_driver.execute_script('ChkStep1()',button)
 
     # dailog 再次確認
     try:
-        x_path = "//div[@class='Item']/button[@name='Send']"
+        x_path = "//div[@id='ConfirmInfo']/div[2]/div[3]/button"
         WebDriverWait(web_driver, 5).until(
             expected_conditions.presence_of_element_located((By.XPATH, x_path))
         )
@@ -165,7 +164,7 @@ def select_rest(web_driver):
 
     # 請您確認送出訂單
     try:
-        x_path = "//div[@class='Item']/button[@name='Send']"
+        x_path = "//div[@id='ConfirmInfo']/div[2]/div/button"
         WebDriverWait(web_driver, 5).until(
             expected_conditions.presence_of_element_located((By.XPATH, x_path))
         )
@@ -205,27 +204,27 @@ def booking_process(web_driver,book_date,book_times,court):
 
 
 if __name__ == '__main__':
-    member_user_name = os.environ.get('MEMBER_USER_NAME')
-    member_information = os.environ.get('MEMBER_INFORMATION')
-
-    if not member_user_name or not member_information:
-        print("missing require")
-        quit()
-    book_date = os.environ.get('BOOK_DATE')
-    book_time = os.environ.get('BOOK_TIME')
+    member_information = os.environ['MEMBER_INFORMATION']
+    book_date = os.environ['BOOK_DATE']
+    book_time = os.environ['BOOK_TIME']
     book_times = book_time.split(',')
     court = os.environ.get('COURT')
+
     if not court:
         court = 736
+
     print(f"book date = {book_date}")
     print(f"book time = {book_times}")
     print(f"book court = {court}")
+
     try:
         web_driver = web_driver_init()
-        login(web_driver,member_user_name,member_information)
+        login(web_driver,member_information)
         wait(book_date)
         booking_process(web_driver,book_date,book_times,court)
     except Exception as e:
         print("outer cache exception = {}".format(e))
+        web_driver.save_screenshot("outer.png")
+
     
     web_driver.quit()
