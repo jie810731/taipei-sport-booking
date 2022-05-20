@@ -119,9 +119,20 @@ def select_time(web_driver,book_date,book_times):
                 
                     return  False
                 element = web_driver.find_element_by_xpath(xpath)
-                web_driver.execute_script("mmDataPickup.Booking(arguments[0],event);", element)
+                sched_id = element.get_attribute('id')
+                
+                element.click()
+                x_path = "//div[@id='{}' and contains(@class,'Booking')]".format(sched_id)
+                WebDriverWait(web_driver, 5).until(
+                    expected_conditions.presence_of_element_located((By.XPATH, x_path))
+                )
                 
                 break
+            except TimeoutException:
+        
+                print("select time timeout, {} element timeout exception".format(x_path))
+                web_driver.save_screenshot("select_time_exception.png")
+
             except Exception as e:
                 print(e)
 
@@ -202,16 +213,34 @@ def booking_process(web_driver,book_date,book_times,court):
 
     select_rest(web_driver)
 
+def getCourtCode(court_number):
+    mapping = {
+        '01':'727',
+        '02':'728',
+        '03':'729',
+        '04':'730',
+        '05':'731',
+        '06':'732',
+        '07':'733',
+        '08':'734',
+        '09':'735',
+        '10':'736'
+    }
+
+    return mapping[court_number]
+
 
 if __name__ == '__main__':
     member_information = os.environ['MEMBER_INFORMATION']
     book_date = os.environ['BOOK_DATE']
     book_time = os.environ['BOOK_TIME']
     book_times = book_time.split(',')
-    court = os.environ.get('COURT')
+    court_number = os.environ.get('COURT_NUMBER')
 
-    if not court:
-        court = 736
+    if not court_number:
+        court_number = '10'
+
+    court = getCourtCode(court_number)
 
     print(f"book date = {book_date}")
     print(f"book time = {book_times}")
