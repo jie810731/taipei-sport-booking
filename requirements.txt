@@ -1,3 +1,4 @@
 selenium==3.141.0
 pause==0.3
 pytz== 2022.1
+requests == 2.27.1
