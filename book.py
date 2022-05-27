@@ -78,10 +78,32 @@ def getTotalFeed(book_times):
 
 def getSessionId():
     session = requests.Session()
-    response = session.get('https://sports.tms.gov.tw/member/?U=home')
+    while True:
+        response = session.get('https://sports.tms.gov.tw/member/?U=home')
+        if response.status_code == 200:
+            break
 
     return session.cookies.get_dict()['PHPSESSID']
 
+def covertStrintToLocalDateTime(time):
+    time_object = datetime.strptime(book_date, "%Y-%m-%d")
+    tw_zone = pytz.timezone('Asia/Taipei')
+
+    tw_time_object = tw_zone.localize(time_object)
+    
+    return tw_time_object
+
+def getSessionTime(book_date_time_object):
+    mytime = book_date_time_object - timedelta(days=14)
+    start_mytime = mytime.replace(hour=9,minute=59,second=50)
+
+    return start_mytime
+
+def getStartBookTime(book_date_time_object):
+    mytime = book_date_time_object - timedelta(days=14)
+    start_mytime = mytime.replace(hour=10,minute=00,second=00)
+
+    return start_mytime
 
 if __name__ == '__main__':
     book_date = os.environ['BOOK_DATE']
@@ -93,6 +115,11 @@ if __name__ == '__main__':
     court = getCourtCode(court_number)
     time_period = getTimePeriod(book_date,book_times,court)    
     total_feed = getTotalFeed(book_times)
+
+    book_date_time_object = covertStrintToLocalDateTime(book_date)
+    get_session_time = getSessionTime(book_date_time_object)
+    get_start_book_time = getStartBookTime(book_date_time_object)
+
 
     files={
         'TopVenueSn': (None, '1'), 
@@ -112,16 +139,29 @@ if __name__ == '__main__':
         'SendVenue': (None, 'OK')
     }
 
-    wait(book_date)
+    pause.until(get_session_time)
+
+    print(f"start get session time in utc = {datetime.now()}")
 
     session_id = getSessionId()
+    
+    print(f"finish get session time in utc = {datetime.now()}")
+
     cookies = {
         "PHPSESSID": session_id, 
-        # "MEMBER_INFORMATION":"OB3%2FABV6k%2BFCrB0vFFVquDInTMIiwLILZC4PfKIXe9Y%2FhNFihDInTMIiwB3HlLJ7gKInXBYHYLmzZNI3bN0rVNomu9nHlLJ7gKInXBVjAKInXBgIvdQEsdgQmgFihFY3fLFquCJziN4XVKJDbNorGQJzXBgIyUwEsggICVQQwcFihCJziN4XVKJDbNorGQJzXBVj%2BNoPbNXDbNIGw%2BVyk%2BUmi%2FEmk%2BEyk%2B1ak%2B1am%2FlihF4vZMIrGMInXBVj7L4HgP4XmQHDrO4HFFVqjB0v7L4HgP4XmQHDrO4HFFVquIW3WNIXgBVyu9nbzL4nbNVquFIvUMIjXG4ThNYGw%2B1Wl%2Bl2k%2BlCn%2FVihFIvUMIjXG4ThNYGwB3zaNorXBVyr%2Bl%2Bj%2BV%2Bm%2FFKu9nzaNorXBVj1CIDfMIqw%2B1ihCm3WNIXgBVj1HYHgPIGw%2B1ihCnLXNZHXBVj1CG3WNIXgBVyu9m%2FzCIDfMIqwB2vzL4nbNVqiB0vBCIDfMIqwB2LkLIHsLFtXW8Ku9mLkLIHsLFquDZ7XLJbXGYHTOovgBVihDZ7XLJbXGYHTOovgBVjGKIXiLIXCKJ%2FlEICwB0vGKIXiLIXCKJ%2FlEICwB3DTMJzXMHzTOp%2FEFWX2BVyu9nDTMJzXMHzTOp%2FEFWX2BS"
         "MEMBER_INFORMATION": member_information
         }
 
-    edit_request = requests.post('https://sports.tms.gov.tw/order_rental/?U=venue&K=49', files=files,cookies=cookies)
+    pause.until(get_start_book_time)
+
+    while True:
+        try:
+            edit_request = requests.post('https://sports.tms.gov.tw/order_rental/?U=venue&K=49', files=files,cookies=cookies , timeout=5)
+        
+            if edit_request.status_code == 200:
+                break
+        except Exception as e:
+            print(e)
 
     print(f"finish edit request time in utc = {datetime.now()}")
 
@@ -130,6 +170,13 @@ if __name__ == '__main__':
         "Agree": "1",
         "SendView": "OK"
     }
-    send_request = requests.post('https://sports.tms.gov.tw/order_rental/?U=view', data=data,cookies=cookies)
+
+    while True:
+        try:
+            send_request = requests.post('https://sports.tms.gov.tw/order_rental/?U=view', data=data,cookies=cookies , timeout=5)
+            if send_request.status_code == 200:
+                break
+        except Exception as e:
+            print(e)
     
     print(f"finish send request time in utc = {datetime.now()}")
