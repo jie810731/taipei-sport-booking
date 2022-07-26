@@ -5,6 +5,8 @@ import datetime
 import pause
 from datetime import datetime,timedelta
 import pytz
+from bs4 import BeautifulSoup
+import html
 
 def wait(book_date):
     book_date_in_date_time = datetime.strptime(book_date, "%Y-%m-%d")
@@ -35,13 +37,16 @@ def getCourtCode(court_number):
     return mapping[court_number]
 
 def getData(year,month,court):
+    session_id = getSessionId()
+    cookies = {'PHPSESSID': session_id}
     pload = {
         'FUNC':'LoadSched',
         'SY':year,
         'SM':month,
         'VenueSN':court,
     }
-    r = requests.post('https://sports.tms.gov.tw/_/x/xhrworkv3.php',data = pload)
+    print(cookies)
+    r = requests.post('https://sports.tms.gov.tw/_/x/xhrworkv3.php',data = pload,cookies=cookies)
 
     return r.json()
 
@@ -79,7 +84,7 @@ def getTotalFeed(book_times):
 def getSessionId():
     session = requests.Session()
     while True:
-        response = session.get('https://sports.tms.gov.tw/member/?U=home')
+        response = session.get('https://sports.tms.gov.tw/venues/?K=49')
         if response.status_code == 200:
             break
 
@@ -104,6 +109,81 @@ def getStartBookTime(book_date_time_object):
     start_mytime = mytime.replace(hour=10,minute=00,second=00)
 
     return start_mytime
+
+def book(files,cookies):
+    while True:
+        try:
+            edit_request = requests.post('https://sports.tms.gov.tw/order_rental/?U=venue&K=49', files=files,cookies=cookies , timeout=5)
+        
+            if edit_request.status_code == 200:
+                break
+        except Exception as e:
+            print(e)
+
+    print(f"finish edit request time in utc = {datetime.now()}")
+
+    data = {
+        "TopVenueSn": "1",
+        "Agree": "1",
+        "SendView": "OK"
+    }
+
+    while True:
+        try:
+            send_request = requests.post('https://sports.tms.gov.tw/order_rental/?U=view', data=data,cookies=cookies , timeout=5)
+            if send_request.status_code == 200:
+                break
+        except Exception as e:
+            print(e)
+    
+    print(f"finish send request time in utc = {datetime.now()}")
+
+def checkOrder(cookies,book_date,book_times ,court):
+    is_order = False
+
+    orderResponse = requests.post('https://sports.tms.gov.tw/member/?U=rental',cookies=cookies)
+    # responseString = html.unescape(orderResponse.content) 
+    soup = BeautifulSoup(orderResponse.content, 'html.parser')
+
+    tbodies = soup.find_all("tbody","ItemTbody")
+
+    for tbody in tbodies:
+        td = tbody.contents[1].contents[9]
+
+        orderCourt = next(td.contents[0].stripped_strings)
+        orderCourt = str([int(x) for x in orderCourt if x.isdigit()][0])
+        orderCourt = orderCourt.zfill(2)
+
+        if orderCourt != court:
+            continue
+
+        timesDivs = td.contents[1].find_all("div")
+        
+        bookDate = ''
+        bookTimes = []
+        for index,div in enumerate(timesDivs):
+            if index == 0:
+                bookDate = div.contents[0].string
+                
+                continue
+            
+            time = div.contents[0].string
+            time = time[ 0 : 2 ]
+
+            bookTimes.append(time)
+        
+        if bookDate != book_date:
+            continue
+
+        for item in  bookTimes:
+            if item in book_times:
+                is_order = True
+                break
+        
+        if is_order == True:
+            break
+    
+    return is_order
 
 if __name__ == '__main__':
     book_date = os.environ['BOOK_DATE']
@@ -154,29 +234,18 @@ if __name__ == '__main__':
 
     pause.until(get_start_book_time)
 
-    while True:
-        try:
-            edit_request = requests.post('https://sports.tms.gov.tw/order_rental/?U=venue&K=49', files=files,cookies=cookies , timeout=5)
-        
-            if edit_request.status_code == 200:
-                break
-        except Exception as e:
-            print(e)
+    end_try_time = datetime.now() + timedelta(minutes=15)
 
-    print(f"finish edit request time in utc = {datetime.now()}")
+    isOrdered = False
+    while not isOrdered :
+        if datetime.now() > end_try_time:
+            print("over end try time")
+            break
 
-    data = {
-        "TopVenueSn": "1",
-        "Agree": "1",
-        "SendView": "OK"
-    }
+        book(files,cookies)
 
-    while True:
-        try:
-            send_request = requests.post('https://sports.tms.gov.tw/order_rental/?U=view', data=data,cookies=cookies , timeout=5)
-            if send_request.status_code == 200:
-                break
-        except Exception as e:
-            print(e)
-    
-    print(f"finish send request time in utc = {datetime.now()}")
+        isOrdered = checkOrder(cookies,book_date,book_times,court_number)
+
+        if not isOrdered:
+            print(f"time = {datetime.now()} does not ordered start pause")
+            pause.seconds(4)
