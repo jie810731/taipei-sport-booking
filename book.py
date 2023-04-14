@@ -141,7 +141,7 @@ def book(files,cookies):
 def checkOrder(cookies,book_date,book_times ,court):
     is_order = False
 
-    orderResponse = requests.post('https://sports.tms.gov.tw/member/?U=rental',cookies=cookies)
+    orderResponse = requests.get('https://sports.tms.gov.tw/member/?U=rental',cookies=cookies)
     # responseString = html.unescape(orderResponse.content) 
     soup = BeautifulSoup(orderResponse.content, 'html.parser')
 
@@ -234,18 +234,20 @@ if __name__ == '__main__':
 
     pause.until(get_start_book_time)
 
-    end_try_time = datetime.now() + timedelta(minutes=15)
+    book(files,cookies)
 
-    isOrdered = False
-    while not isOrdered :
-        if datetime.now() > end_try_time:
-            print("over end try time")
-            break
+    # end_try_time = datetime.now() + timedelta(minutes=15)
 
-        book(files,cookies)
+    # isOrdered = False
+    # while not isOrdered :
+    #     if datetime.now() > end_try_time:
+    #         print("over end try time")
+    #         break
 
-        isOrdered = checkOrder(cookies,book_date,book_times,court_number)
+    #     book(files,cookies)
 
-        if not isOrdered:
-            print(f"time = {datetime.now()} does not ordered start pause")
-            pause.seconds(4)
+    #     isOrdered = checkOrder(cookies,book_date,book_times,court_number)
+
+    #     if not isOrdered:
+    #         print(f"time = {datetime.now()} does not ordered start pause")
+    #         pause.seconds(4)
