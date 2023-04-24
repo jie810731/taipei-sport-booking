@@ -1,6 +1,12 @@
-FROM python:3.7.11-buster
+FROM python:3.9.16-slim-buster
 
 WORKDIR /app
+
+RUN apt-get update && apt-get install -y \
+    gnupg2 \
+    wget \
+    curl \
+    unzip
 
 COPY requirements.txt requirements.txt
 RUN pip3 install -r requirements.txt
@@ -17,4 +23,4 @@ RUN unzip /tmp/chromedriver.zip chromedriver -d /usr/local/bin/
 
 COPY . .
 
-CMD ["python3","booking.py"]
+CMD ["python3","book.py"]

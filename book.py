@@ -235,19 +235,3 @@ if __name__ == '__main__':
     pause.until(get_start_book_time)
 
     book(files,cookies)
-
-    # end_try_time = datetime.now() + timedelta(minutes=15)
-
-    # isOrdered = False
-    # while not isOrdered :
-    #     if datetime.now() > end_try_time:
-    #         print("over end try time")
-    #         break
-
-    #     book(files,cookies)
-
-    #     isOrdered = checkOrder(cookies,book_date,book_times,court_number)
-
-    #     if not isOrdered:
-    #         print(f"time = {datetime.now()} does not ordered start pause")
-    #         pause.seconds(4)
